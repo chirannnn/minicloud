@@ -27,7 +27,11 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
-	if err := database.Migrate(ctx, db, "apps/api/migrations"); err != nil {
+	migrationDir := "apps/api/migrations"
+	if _, err := os.Stat(migrationDir); os.IsNotExist(err) {
+		migrationDir = "migrations"
+	}
+	if err := database.Migrate(ctx, db, migrationDir); err != nil {
 		log.Fatal(err)
 	}
 	shutdownTelemetry, err := observability.Setup(ctx, cfg)
