@@ -27,13 +27,14 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
+	if err := database.Migrate(ctx, db, "apps/api/migrations"); err != nil { log.Fatal(err) }
 	shutdownTelemetry, err := observability.Setup(ctx, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer func() { _ = shutdownTelemetry(context.Background()) }()
 	logger := logger.New()
-	if err := server.Run(ctx, cfg, router.New(cfg, logger), logger); err != nil {
+	if err := server.Run(ctx, cfg, router.New(cfg, db, logger), logger); err != nil {
 		log.Fatal(err)
 	}
 }

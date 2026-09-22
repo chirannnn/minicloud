@@ -8,11 +8,13 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minicloud/minicloud/apps/api/internal/config"
+	"github.com/minicloud/minicloud/apps/api/internal/modules/controlplane"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-func New(cfg config.Config, log *slog.Logger) http.Handler {
+func New(cfg config.Config, db *pgxpool.Pool, log *slog.Logger) http.Handler {
 	mux := http.NewServeMux()
 	health := func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "service": cfg.ServiceName})
@@ -20,6 +22,9 @@ func New(cfg config.Config, log *slog.Logger) http.Handler {
 	mux.HandleFunc("GET /health", health)
 	mux.HandleFunc("GET /api/v1/health", health)
 	mux.HandleFunc("GET /ready", readiness(cfg))
+	if db != nil {
+		controlplane.New(db).Register(mux)
+	}
 	return otelhttp.NewHandler(requestID(cors(cfg.ConsoleOrigin, log, mux)), "minicloud-api")
 }
 
