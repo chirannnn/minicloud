@@ -14,7 +14,11 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-func New(cfg config.Config, db *pgxpool.Pool, log *slog.Logger) http.Handler {
+func New(cfg config.Config, log *slog.Logger, databases ...*pgxpool.Pool) http.Handler {
+	var db *pgxpool.Pool
+	if len(databases) > 0 {
+		db = databases[0]
+	}
 	mux := http.NewServeMux()
 	health := func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "service": cfg.ServiceName})
