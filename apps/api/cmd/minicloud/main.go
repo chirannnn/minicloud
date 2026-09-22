@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/minicloud/minicloud/apps/api/internal/config"
+	"github.com/minicloud/minicloud/apps/api/internal/database"
 	"github.com/minicloud/minicloud/apps/api/internal/logger"
 	"github.com/minicloud/minicloud/apps/api/internal/observability"
 	"github.com/minicloud/minicloud/apps/api/internal/router"
@@ -21,6 +22,11 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 	shutdownTelemetry, err := observability.Setup(ctx, cfg)
 	if err != nil {
 		log.Fatal(err)
