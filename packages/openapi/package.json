@@ -1,0 +1,11 @@
+{
+  "name": "@minicloud/openapi",
+  "private": true,
+  "scripts": {
+    "validate": "swagger-cli validate openapi.yaml",
+    "generate": "pnpm validate"
+  },
+  "devDependencies": {
+    "swagger-cli": "^4.0.4"
+  }
+}

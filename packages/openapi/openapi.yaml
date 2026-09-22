@@ -1,0 +1,101 @@
+openapi: 3.1.0
+info:
+  title: MiniCloud API
+  version: 0.1.0
+  description: Phase 0 foundation contract for the MiniCloud control plane.
+servers:
+  - url: http://localhost:8080
+    description: Local development API
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Return process liveness.
+      responses:
+        '200':
+          description: API process is alive.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+  /ready:
+    get:
+      operationId: getReadiness
+      summary: Return dependency readiness.
+      responses:
+        '200':
+          description: Required local dependencies are reachable.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/health:
+    get:
+      operationId: getVersionedHealth
+      summary: Return versioned API liveness.
+      responses:
+        '200':
+          description: API process is alive.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestId'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+components:
+  headers:
+    RequestId:
+      description: Correlation identifier assigned to this HTTP request.
+      schema:
+        type: string
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, service]
+      properties:
+        status:
+          type: string
+          const: ok
+        service:
+          type: string
+    ReadinessResponse:
+      type: object
+      required: [status, dependencies]
+      properties:
+        status:
+          type: string
+          enum: [ok, unavailable]
+        dependencies:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [ok, unavailable]
+    Error:
+      type: object
+      required: [code, message, requestId]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        requestId:
+          type: string
+  responses:
+    ServiceUnavailable:
+      description: One or more required dependencies are unavailable.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestId'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
