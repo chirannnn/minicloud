@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: MiniCloud API
   version: 0.1.0
-  description: Phase 0 foundation contract for the MiniCloud control plane.
+  description: Phase 1 control-plane contract. Lists use limit/offset pagination.
 servers:
   - url: http://localhost:8080
     description: Local development API
@@ -51,7 +51,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
+  /api/v1/users:
+    get: { operationId: listUsers, responses: {'200': {description: Users}} }
+    post: { operationId: createUser, responses: {'201': {description: User created}, '400': {$ref: '#/components/responses/BadRequest'}} }
+  /api/v1/users/{id}:
+    get: { operationId: getUser, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: User}, '404': {$ref: '#/components/responses/NotFound'}} }
+  /api/v1/projects:
+    get: { operationId: listProjects, responses: {'200': {description: Projects}} }
+    post: { operationId: createProject, responses: {'201': {description: Project created}} }
+  /api/v1/projects/{id}:
+    get: { operationId: getProject, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Project}} }
+    patch: { operationId: updateProject, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Project updated}} }
+    delete: { operationId: deleteProject, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'204': {description: Deleted}} }
+  /api/v1/projects/{projectId}/applications:
+    get: { operationId: listApplications, parameters: [{$ref: '#/components/parameters/ProjectId'}], responses: {'200': {description: Applications}} }
+    post: { operationId: createApplication, parameters: [{$ref: '#/components/parameters/ProjectId'}], responses: {'201': {description: Application created}} }
+  /api/v1/projects/{projectId}/applications/{applicationId}:
+    get: { operationId: getApplication, parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/ApplicationId'}], responses: {'200': {description: Application}} }
+    patch: { operationId: updateApplication, parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/ApplicationId'}], responses: {'200': {description: Application updated}} }
+    delete: { operationId: deleteApplication, parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/ApplicationId'}], responses: {'204': {description: Deleted}} }
+  /api/v1/projects/{projectId}/applications/{applicationId}/deployments:
+    get: { operationId: listDeployments, parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/ApplicationId'}], responses: {'200': {description: Deployments}} }
+    post: { operationId: createDeployment, parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/ApplicationId'}], responses: {'201': {description: Deployment created}} }
+  /api/v1/deployments/{id}:
+    get: { operationId: getDeployment, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Deployment}} }
+  /api/v1/deployments/{id}/status:
+    patch: { operationId: updateDeploymentStatus, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Deployment updated}} }
 components:
+  parameters:
+    Id: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    ProjectId: {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
+    ApplicationId: {name: applicationId, in: path, required: true, schema: {type: string, format: uuid}}
   headers:
     RequestId:
       description: Correlation identifier assigned to this HTTP request.
@@ -90,6 +120,8 @@ components:
         requestId:
           type: string
   responses:
+    BadRequest: {description: Invalid request}
+    NotFound: {description: Resource not found}
     ServiceUnavailable:
       description: One or more required dependencies are unavailable.
       headers:

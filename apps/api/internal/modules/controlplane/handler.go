@@ -18,12 +18,17 @@ func (h *Handler) Register(m *http.ServeMux) {
 	m.HandleFunc("GET /api/v1/projects", h.listProjects)
 	m.HandleFunc("POST /api/v1/projects", h.createProject)
 	m.HandleFunc("GET /api/v1/projects/{id}", h.getProject)
+	m.HandleFunc("PATCH /api/v1/projects/{id}", h.updateProject)
+	m.HandleFunc("DELETE /api/v1/projects/{id}", h.deleteProject)
 	m.HandleFunc("GET /api/v1/projects/{projectId}/applications", h.listApps)
 	m.HandleFunc("POST /api/v1/projects/{projectId}/applications", h.createApp)
 	m.HandleFunc("GET /api/v1/projects/{projectId}/applications/{applicationId}", h.getApp)
+	m.HandleFunc("PATCH /api/v1/projects/{projectId}/applications/{applicationId}", h.updateApp)
+	m.HandleFunc("DELETE /api/v1/projects/{projectId}/applications/{applicationId}", h.deleteApp)
 	m.HandleFunc("GET /api/v1/projects/{projectId}/applications/{applicationId}/deployments", h.listDeployments)
 	m.HandleFunc("POST /api/v1/projects/{projectId}/applications/{applicationId}/deployments", h.createDeployment)
 	m.HandleFunc("GET /api/v1/deployments/{id}", h.getDeployment)
+	m.HandleFunc("PATCH /api/v1/deployments/{id}/status", h.updateDeploymentStatus)
 }
 func decode(r *http.Request, v any) error { return json.NewDecoder(r.Body).Decode(v) }
 func out(w http.ResponseWriter, s int, v any) {
@@ -234,4 +239,82 @@ func (h *Handler) getDeployment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out(w, 200, v)
+}
+func (h *Handler) updateProject(w http.ResponseWriter, r *http.Request) {
+	p, ok := id(r, "id")
+	var v struct{ Name, Description, Status string }
+	if !ok || decode(r, &v) != nil || v.Name == "" {
+		bad(w, "name required")
+		return
+	}
+	tag, e := h.db.Exec(r.Context(), `UPDATE projects SET name=$2,description=$3,status=COALESCE(NULLIF($4,''),status),updated_at=now() WHERE id=$1`, p, v.Name, v.Description, v.Status)
+	if e != nil {
+		out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		missing(w)
+		return
+	}
+	out(w, 200, map[string]string{"id": p.String()})
+}
+func (h *Handler) deleteProject(w http.ResponseWriter, r *http.Request) {
+	p, ok := id(r, "id")
+	if !ok {
+		bad(w, "invalid project id")
+		return
+	}
+	tag, e := h.db.Exec(r.Context(), `DELETE FROM projects WHERE id=$1`, p)
+	if e != nil {
+		out(w, 409, map[string]string{"code": "CONFLICT", "message": "Project has child resources"})
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		missing(w)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+func (h *Handler) updateApp(w http.ResponseWriter, r *http.Request) {
+	p, _ := id(r, "projectId")
+	a, _ := id(r, "applicationId")
+	var v struct{ Name, Description, Status string }
+	if decode(r, &v) != nil || v.Name == "" {
+		bad(w, "name required")
+		return
+	}
+	tag, _ := h.db.Exec(r.Context(), `UPDATE applications SET name=$3,description=$4,status=COALESCE(NULLIF($5,''),status),updated_at=now() WHERE id=$1 AND project_id=$2`, a, p, v.Name, v.Description, v.Status)
+	if tag.RowsAffected() == 0 {
+		missing(w)
+		return
+	}
+	out(w, 200, map[string]string{"id": a.String()})
+}
+func (h *Handler) deleteApp(w http.ResponseWriter, r *http.Request) {
+	p, _ := id(r, "projectId")
+	a, _ := id(r, "applicationId")
+	tag, e := h.db.Exec(r.Context(), `DELETE FROM applications WHERE id=$1 AND project_id=$2`, a, p)
+	if e != nil {
+		out(w, 409, map[string]string{"code": "CONFLICT", "message": "Application has deployments"})
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		missing(w)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+func (h *Handler) updateDeploymentStatus(w http.ResponseWriter, r *http.Request) {
+	d, ok := id(r, "id")
+	var v struct{ Status string }
+	if !ok || decode(r, &v) != nil || !map[string]bool{"PENDING": true, "QUEUED": true, "RUNNING": true, "SUCCEEDED": true, "FAILED": true, "CANCELLED": true}[v.Status] {
+		bad(w, "invalid deployment status")
+		return
+	}
+	tag, _ := h.db.Exec(r.Context(), `UPDATE deployments SET status=$2,updated_at=now() WHERE id=$1`, d, v.Status)
+	if tag.RowsAffected() == 0 {
+		missing(w)
+		return
+	}
+	out(w, 200, map[string]string{"id": d.String(), "status": v.Status})
 }
