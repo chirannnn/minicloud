@@ -4,7 +4,9 @@ MiniCloud is a small, educational cloud engineering platform. It uses real infra
 
 ## Current status
 
-Phase 0 — Foundation and Development Environment.
+Phase 1 — Core Control Plane (in progress)
+
+Phase 0 (Foundation) is complete. Phase 1 adds users, projects, applications, and deployments with database migrations, API endpoints, and validation.
 
 ## Requirements
 
@@ -52,4 +54,14 @@ Next.js Console → Go API → PostgreSQL / Redis / Kafka / MinIO
                        └→ OTel Collector → Prometheus / Loki / Tempo → Grafana
 ```
 
-Read [PROJECT.md](PROJECT.md), [PLAN.md](PLAN.md), and [PROGRESS.md](PROGRESS.md) before implementing further phases.
+The control plane is a Go modular monolith. Independent services are introduced only when later phases require them.
+
+## High-level roadmap
+
+- **Phase 0**: Foundation (complete) - Monorepo, API/console skeletons, infrastructure, CI
+- **Phase 1**: Core Control Plane (in progress) - Users, projects, applications, deployments
+- **Phase 2**: Console + Observatory - Real resource views, WebSocket activity stream
+- **Phase 3-9**: Progressive infrastructure services (cache, events, queue, storage, compute, scheduling, autoscaling)
+- **Phase 10-12**: Observability maturity, security/testing, and cloud exploration
+
+Read [PROJECT.md](PROJECT.md) for the project specification, [PLAN.md](PLAN.md) for detailed phase definitions, [PROGRESS.md](PROGRESS.md) for current implementation status, and [AGENTS.md](AGENTS.md) for AI agent instructions.
