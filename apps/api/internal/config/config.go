@@ -14,6 +14,7 @@ type Config struct {
 	ConsoleOrigin string
 	OTLPEndpoint  string
 	ServiceName   string
+	DatabaseURL   string
 	Dependencies  map[string]string
 }
 
@@ -25,6 +26,7 @@ func Load() (Config, error) {
 		ConsoleOrigin: env("CONSOLE_ORIGIN", "http://localhost:3000"),
 		OTLPEndpoint:  env("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4318"),
 		ServiceName:   env("OTEL_SERVICE_NAME", "minicloud-api"),
+		DatabaseURL:   fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", env("POSTGRES_USER", "minicloud"), env("POSTGRES_PASSWORD", "minicloud_dev_password"), env("POSTGRES_HOST", "localhost"), env("POSTGRES_PORT", "5432"), env("POSTGRES_DATABASE", "minicloud")),
 		Dependencies: map[string]string{
 			"postgres": net.JoinHostPort(env("POSTGRES_HOST", "localhost"), env("POSTGRES_PORT", "5432")),
 			"redis":    net.JoinHostPort(env("REDIS_HOST", "localhost"), env("REDIS_PORT", "6379")),

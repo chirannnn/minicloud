@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/minicloud/minicloud/apps/api/internal/config"
+	"github.com/minicloud/minicloud/apps/api/internal/database"
 	"github.com/minicloud/minicloud/apps/api/internal/logger"
 	"github.com/minicloud/minicloud/apps/api/internal/observability"
 	"github.com/minicloud/minicloud/apps/api/internal/router"
@@ -21,13 +22,25 @@ func main() {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	db, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	migrationDir := "apps/api/migrations"
+	if _, err := os.Stat(migrationDir); os.IsNotExist(err) {
+		migrationDir = "migrations"
+	}
+	if err := database.Migrate(ctx, db, migrationDir); err != nil {
+		log.Fatal(err)
+	}
 	shutdownTelemetry, err := observability.Setup(ctx, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer func() { _ = shutdownTelemetry(context.Background()) }()
 	logger := logger.New()
-	if err := server.Run(ctx, cfg, router.New(cfg, logger), logger); err != nil {
+	if err := server.Run(ctx, cfg, router.New(cfg, logger, db), logger); err != nil {
 		log.Fatal(err)
 	}
 }
