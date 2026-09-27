@@ -9,14 +9,14 @@ import (
 )
 
 type Handler struct {
-	db         *pgxpool.Pool
-	repository *Repository
+	db      *pgxpool.Pool
+	service *Service
 }
 
 func New(db *pgxpool.Pool) *Handler {
 	return &Handler{
-		db:         db,
-		repository: NewRepository(db),
+		db:      db,
+		service: NewService(db),
 	}
 }
 func (h *Handler) Register(m *http.ServeMux) {
@@ -60,15 +60,19 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request) {
 		bad(w, "email and displayName are required")
 		return
 	}
-	user, err := h.repository.CreateUser(r.Context(), v.Email, v.DisplayName)
+	user, err := h.service.CreateUser(r.Context(), v.Email, v.DisplayName)
 	if err != nil {
-		out(w, 409, map[string]string{"code": "ALREADY_EXISTS", "message": "User already exists"})
+		if err == ErrResourceConflict {
+			out(w, 409, map[string]string{"code": "ALREADY_EXISTS", "message": "User already exists"})
+		} else {
+			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		}
 		return
 	}
 	out(w, 201, map[string]string{"id": user.ID.String(), "email": user.Email, "displayName": user.DisplayName})
 }
 func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := h.repository.ListUsers(r.Context(), 100, 0)
+	users, err := h.service.ListUsers(r.Context(), 100, 0)
 	if err != nil {
 		out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
 		return
@@ -85,9 +89,13 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 		bad(w, "invalid user id")
 		return
 	}
-	user, err := h.repository.GetUser(r.Context(), x)
+	user, err := h.service.GetUser(r.Context(), x)
 	if err != nil {
-		missing(w)
+		if err == ErrUserNotFound {
+			missing(w)
+		} else {
+			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		}
 		return
 	}
 	out(w, 200, map[string]string{"id": user.ID.String(), "email": user.Email, "displayName": user.DisplayName})
@@ -99,32 +107,22 @@ func (h *Handler) createProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	owner, _ := uuid.Parse(v.OwnerID)
-	project, e := h.repository.CreateProject(r.Context(), owner, v.Name, v.Slug, v.Description)
-	if e != nil {
-		out(w, 409, map[string]string{"code": "CONFLICT", "message": "Project already exists or owner is invalid"})
+	project, err := h.service.CreateProject(r.Context(), owner, v.Name, v.Slug, v.Description)
+	if err != nil {
+		if err == ErrUserNotFound {
+			out(w, 404, map[string]string{"code": "NOT_FOUND", "message": "Owner not found"})
+		} else if err == ErrResourceConflict {
+			out(w, 409, map[string]string{"code": "CONFLICT", "message": "Project already exists"})
+		} else {
+			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		}
 		return
 	}
-	tx, e := h.db.Begin(r.Context())
-	if e != nil {
-		out(w, 500, nil)
-		return
-	}
-	defer tx.Rollback(r.Context())
-
-	_, e = tx.Exec(r.Context(), `INSERT INTO audit_logs(project_id,actor_id,action,resource_type,resource_id)VALUES($1,$2,'project.created','project',$1)`, project.ID, owner)
-	if e == nil {
-		_, e = tx.Exec(r.Context(), `INSERT INTO outbox_events(event_type,aggregate_type,aggregate_id,payload)VALUES('minicloud.project.created','project',$1,$2)`, project.ID, []byte(`{}`))
-	}
-	if e != nil {
-		out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
-		return
-	}
-	_ = tx.Commit(r.Context())
 	out(w, 201, map[string]string{"id": project.ID.String()})
 }
 func valid(s string) bool { return s != "" && len(s) < 64 && !strings.ContainsAny(s, " /\\") }
 func (h *Handler) listProjects(w http.ResponseWriter, r *http.Request) {
-	projects, err := h.repository.ListProjects(r.Context(), 100, 0)
+	projects, err := h.service.ListProjects(r.Context(), 100, 0)
 	if err != nil {
 		out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
 		return
@@ -141,9 +139,13 @@ func (h *Handler) getProject(w http.ResponseWriter, r *http.Request) {
 		bad(w, "invalid project id")
 		return
 	}
-	project, err := h.repository.GetProject(r.Context(), x)
+	project, err := h.service.GetProject(r.Context(), x)
 	if err != nil {
-		missing(w)
+		if err == ErrProjectNotFound {
+			missing(w)
+		} else {
+			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		}
 		return
 	}
 	out(w, 200, map[string]string{"id": project.ID.String(), "ownerId": project.OwnerID.String(), "name": project.Name, "slug": project.Slug, "description": project.Description, "status": project.Status})
@@ -154,9 +156,13 @@ func (h *Handler) listApps(w http.ResponseWriter, r *http.Request) {
 		bad(w, "invalid project id")
 		return
 	}
-	apps, err := h.repository.ListApplicationsByProject(r.Context(), p, 100, 0)
+	apps, err := h.service.ListApplicationsByProject(r.Context(), p, 100, 0)
 	if err != nil {
-		missing(w)
+		if err == ErrProjectNotFound {
+			missing(w)
+		} else {
+			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		}
 		return
 	}
 	items := []any{}
@@ -172,31 +178,29 @@ func (h *Handler) createApp(w http.ResponseWriter, r *http.Request) {
 		bad(w, "name and valid slug required")
 		return
 	}
-	app, e := h.repository.CreateApplication(r.Context(), p, v.Name, v.Slug, v.Description)
-	if e != nil {
-		out(w, 409, map[string]string{"code": "CONFLICT", "message": "Application conflict or project missing"})
+	app, err := h.service.CreateApplication(r.Context(), p, v.Name, v.Slug, v.Description)
+	if err != nil {
+		if err == ErrProjectNotFound {
+			out(w, 404, map[string]string{"code": "NOT_FOUND", "message": "Project not found"})
+		} else if err == ErrResourceConflict {
+			out(w, 409, map[string]string{"code": "CONFLICT", "message": "Application conflict"})
+		} else {
+			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		}
 		return
 	}
-	tx, _ := h.db.Begin(r.Context())
-	defer tx.Rollback(r.Context())
-
-	_, e = tx.Exec(r.Context(), `INSERT INTO audit_logs(project_id,action,resource_type,resource_id)VALUES($1,'application.created','application',$2)`, p, app.ID)
-	if e == nil {
-		_, e = tx.Exec(r.Context(), `INSERT INTO outbox_events(event_type,aggregate_type,aggregate_id,payload)VALUES('minicloud.application.created','application',$1,'{}')`, app.ID)
-	}
-	if e != nil {
-		out(w, 500, nil)
-		return
-	}
-	_ = tx.Commit(r.Context())
 	out(w, 201, map[string]string{"id": app.ID.String()})
 }
 func (h *Handler) getApp(w http.ResponseWriter, r *http.Request) {
 	p, _ := id(r, "projectId")
 	a, _ := id(r, "applicationId")
-	app, err := h.repository.GetApplication(r.Context(), a, p)
+	app, err := h.service.GetApplication(r.Context(), a, p)
 	if err != nil {
-		missing(w)
+		if err == ErrApplicationNotFound {
+			missing(w)
+		} else {
+			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		}
 		return
 	}
 	out(w, 200, map[string]string{"id": app.ID.String(), "projectId": app.ProjectID.String(), "name": app.Name, "slug": app.Slug, "description": app.Description, "status": app.Status})
@@ -204,9 +208,13 @@ func (h *Handler) getApp(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) listDeployments(w http.ResponseWriter, r *http.Request) {
 	p, _ := id(r, "projectId")
 	a, _ := id(r, "applicationId")
-	deployments, err := h.repository.ListDeploymentsByApplication(r.Context(), p, a, 100, 0)
+	deployments, err := h.service.ListDeploymentsByApplication(r.Context(), p, a, 100, 0)
 	if err != nil {
-		out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		if err == ErrInvalidRelationship {
+			out(w, 400, map[string]string{"code": "INVALID_RELATIONSHIP", "message": "Invalid application/project relationship"})
+		} else {
+			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		}
 		return
 	}
 	items := []any{}
@@ -226,18 +234,28 @@ func (h *Handler) createDeployment(w http.ResponseWriter, r *http.Request) {
 		bad(w, "version required")
 		return
 	}
-	deployment, err := h.repository.CreateDeployment(r.Context(), p, a, v.Version, v.Configuration)
+	deployment, err := h.service.CreateDeployment(r.Context(), p, a, v.Version, v.Configuration)
 	if err != nil {
-		missing(w)
+		if err == ErrInvalidRelationship {
+			out(w, 400, map[string]string{"code": "INVALID_RELATIONSHIP", "message": "Invalid application/project relationship"})
+		} else if err == ErrResourceConflict {
+			out(w, 409, map[string]string{"code": "CONFLICT", "message": "Deployment conflict"})
+		} else {
+			missing(w)
+		}
 		return
 	}
 	out(w, 201, map[string]string{"id": deployment.ID.String()})
 }
 func (h *Handler) getDeployment(w http.ResponseWriter, r *http.Request) {
 	d, _ := id(r, "id")
-	deployment, err := h.repository.GetDeployment(r.Context(), d)
+	deployment, err := h.service.GetDeployment(r.Context(), d)
 	if err != nil {
-		missing(w)
+		if err == ErrDeploymentNotFound {
+			missing(w)
+		} else {
+			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		}
 		return
 	}
 	out(w, 200, map[string]string{"id": deployment.ID.String(), "projectId": deployment.ProjectID.String(), "applicationId": deployment.ApplicationID.String(), "version": deployment.Version, "status": deployment.Status})
@@ -249,9 +267,13 @@ func (h *Handler) updateProject(w http.ResponseWriter, r *http.Request) {
 		bad(w, "name required")
 		return
 	}
-	_, err := h.repository.UpdateProject(r.Context(), p, v.Name, v.Description, v.Status)
+	_, err := h.service.UpdateProject(r.Context(), p, v.Name, v.Description, v.Status)
 	if err != nil {
-		out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		if err == ErrProjectNotFound {
+			missing(w)
+		} else {
+			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		}
 		return
 	}
 	out(w, 200, map[string]string{"id": p.String()})
@@ -262,9 +284,13 @@ func (h *Handler) deleteProject(w http.ResponseWriter, r *http.Request) {
 		bad(w, "invalid project id")
 		return
 	}
-	err := h.repository.DeleteProject(r.Context(), p)
+	err := h.service.DeleteProject(r.Context(), p)
 	if err != nil {
-		out(w, 409, map[string]string{"code": "CONFLICT", "message": "Project has child resources"})
+		if err == ErrProjectNotFound {
+			missing(w)
+		} else {
+			out(w, 409, map[string]string{"code": "CONFLICT", "message": "Project has child resources"})
+		}
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -277,9 +303,13 @@ func (h *Handler) updateApp(w http.ResponseWriter, r *http.Request) {
 		bad(w, "name required")
 		return
 	}
-	_, err := h.repository.UpdateApplication(r.Context(), a, p, v.Name, v.Description, v.Status)
+	_, err := h.service.UpdateApplication(r.Context(), a, p, v.Name, v.Description, v.Status)
 	if err != nil {
-		missing(w)
+		if err == ErrApplicationNotFound {
+			missing(w)
+		} else {
+			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		}
 		return
 	}
 	out(w, 200, map[string]string{"id": a.String()})
@@ -287,9 +317,13 @@ func (h *Handler) updateApp(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) deleteApp(w http.ResponseWriter, r *http.Request) {
 	p, _ := id(r, "projectId")
 	a, _ := id(r, "applicationId")
-	err := h.repository.DeleteApplication(r.Context(), a, p)
+	err := h.service.DeleteApplication(r.Context(), a, p)
 	if err != nil {
-		out(w, 409, map[string]string{"code": "CONFLICT", "message": "Application has deployments"})
+		if err == ErrApplicationNotFound {
+			missing(w)
+		} else {
+			out(w, 409, map[string]string{"code": "CONFLICT", "message": "Application has deployments"})
+		}
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -301,9 +335,15 @@ func (h *Handler) updateDeploymentStatus(w http.ResponseWriter, r *http.Request)
 		bad(w, "invalid deployment status")
 		return
 	}
-	_, err := h.repository.UpdateDeploymentStatus(r.Context(), d, v.Status)
+	_, err := h.service.UpdateDeploymentStatus(r.Context(), d, v.Status)
 	if err != nil {
-		missing(w)
+		if err == ErrDeploymentNotFound {
+			missing(w)
+		} else if err == ErrInvalidStatus {
+			bad(w, "invalid deployment status")
+		} else {
+			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		}
 		return
 	}
 	out(w, 200, map[string]string{"id": d.String(), "status": v.Status})
