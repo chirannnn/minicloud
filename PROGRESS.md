@@ -35,16 +35,16 @@ IN PROGRESS
 - **Ownership Boundaries**: Foreign key constraints and scope validation implemented.
 - **OpenAPI Contract**: Phase 1 endpoints added to OpenAPI specification.
 - **SQLC Configuration**: sqlc.yaml configured for PostgreSQL with pgx/v5.
+- **SQLC Integration**: Complete SQLC queries for all resources (users, projects, applications, deployments) generated and integrated.
+- **Repository Layer**: Repository layer created using SQLC-generated code to handle database operations.
+- **Handler Refactoring**: All control-plane handlers refactored to use repository layer instead of raw SQL.
 
 ### In Progress
-- **SQLC Integration**: Configuration exists but generated code not yet used (handlers use raw SQL).
 - **OpenAPI Schemas**: Endpoints defined but request/response schemas incomplete.
 - **Testing**: Only basic router tests exist; no handler or integration tests.
 - **Console Integration**: Console still shows Phase 0 messaging; no Phase 1 resource UI.
 
 ### Remaining Work
-- Complete SQLC queries for all resources (currently only 3 user queries exist).
-- Generate SQLC code and refactor handlers to use it.
 - Add comprehensive handler tests.
 - Add integration tests with database.
 - Complete OpenAPI schemas with detailed request/response definitions.
