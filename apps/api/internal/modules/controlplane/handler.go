@@ -49,24 +49,29 @@ func id(r *http.Request, k string) (uuid.UUID, bool) {
 	return x, e == nil
 }
 func bad(w http.ResponseWriter, m string) {
-	out(w, 400, map[string]string{"code": "VALIDATION_FAILED", "message": m})
+	out(w, 400, HTTPError{Code: CodeValidationFailed, Message: m})
 }
+
 func missing(w http.ResponseWriter) {
-	out(w, 404, map[string]string{"code": "NOT_FOUND", "message": "Resource was not found"})
+	out(w, 404, HTTPError{Code: CodeNotFound, Message: "Resource was not found"})
 }
 func (h *Handler) createUser(w http.ResponseWriter, r *http.Request) {
 	var v struct{ Email, DisplayName string }
-	if decode(r, &v) != nil || !strings.Contains(v.Email, "@") || v.DisplayName == "" {
-		bad(w, "email and displayName are required")
+	if decode(r, &v) != nil {
+		bad(w, "invalid request body")
 		return
 	}
+
 	user, err := h.service.CreateUser(r.Context(), v.Email, v.DisplayName)
 	if err != nil {
-		if err == ErrResourceConflict {
-			out(w, 409, map[string]string{"code": "ALREADY_EXISTS", "message": "User already exists"})
-		} else {
-			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeValidationFailed {
+			status = 400
+		} else if httpErr.Code == CodeConflict {
+			status = 409
 		}
+		out(w, status, httpErr)
 		return
 	}
 	out(w, 201, map[string]string{"id": user.ID.String(), "email": user.Email, "displayName": user.DisplayName})
@@ -74,7 +79,8 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request) {
 	users, err := h.service.ListUsers(r.Context(), 100, 0)
 	if err != nil {
-		out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		out(w, 500, httpErr)
 		return
 	}
 	items := []any{}
@@ -91,31 +97,41 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 	}
 	user, err := h.service.GetUser(r.Context(), x)
 	if err != nil {
-		if err == ErrUserNotFound {
-			missing(w)
-		} else {
-			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeNotFound {
+			status = 404
 		}
+		out(w, status, httpErr)
 		return
 	}
 	out(w, 200, map[string]string{"id": user.ID.String(), "email": user.Email, "displayName": user.DisplayName})
 }
 func (h *Handler) createProject(w http.ResponseWriter, r *http.Request) {
 	var v struct{ OwnerID, Name, Slug, Description string }
-	if decode(r, &v) != nil || v.OwnerID == "" || v.Name == "" || !valid(v.Slug) {
-		bad(w, "ownerId, name and valid slug are required")
+	if decode(r, &v) != nil {
+		bad(w, "invalid request body")
 		return
 	}
-	owner, _ := uuid.Parse(v.OwnerID)
+
+	owner, err := uuid.Parse(v.OwnerID)
+	if err != nil {
+		bad(w, "invalid owner id")
+		return
+	}
+
 	project, err := h.service.CreateProject(r.Context(), owner, v.Name, v.Slug, v.Description)
 	if err != nil {
-		if err == ErrUserNotFound {
-			out(w, 404, map[string]string{"code": "NOT_FOUND", "message": "Owner not found"})
-		} else if err == ErrResourceConflict {
-			out(w, 409, map[string]string{"code": "CONFLICT", "message": "Project already exists"})
-		} else {
-			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeValidationFailed {
+			status = 400
+		} else if httpErr.Code == CodeNotFound {
+			status = 404
+		} else if httpErr.Code == CodeConflict {
+			status = 409
 		}
+		out(w, status, httpErr)
 		return
 	}
 	out(w, 201, map[string]string{"id": project.ID.String()})
@@ -124,7 +140,8 @@ func valid(s string) bool { return s != "" && len(s) < 64 && !strings.ContainsAn
 func (h *Handler) listProjects(w http.ResponseWriter, r *http.Request) {
 	projects, err := h.service.ListProjects(r.Context(), 100, 0)
 	if err != nil {
-		out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		out(w, 500, httpErr)
 		return
 	}
 	items := []any{}
@@ -141,11 +158,12 @@ func (h *Handler) getProject(w http.ResponseWriter, r *http.Request) {
 	}
 	project, err := h.service.GetProject(r.Context(), x)
 	if err != nil {
-		if err == ErrProjectNotFound {
-			missing(w)
-		} else {
-			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeNotFound {
+			status = 404
 		}
+		out(w, status, httpErr)
 		return
 	}
 	out(w, 200, map[string]string{"id": project.ID.String(), "ownerId": project.OwnerID.String(), "name": project.Name, "slug": project.Slug, "description": project.Description, "status": project.Status})
@@ -158,11 +176,12 @@ func (h *Handler) listApps(w http.ResponseWriter, r *http.Request) {
 	}
 	apps, err := h.service.ListApplicationsByProject(r.Context(), p, 100, 0)
 	if err != nil {
-		if err == ErrProjectNotFound {
-			missing(w)
-		} else {
-			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeNotFound {
+			status = 404
 		}
+		out(w, status, httpErr)
 		return
 	}
 	items := []any{}
@@ -174,19 +193,23 @@ func (h *Handler) listApps(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) createApp(w http.ResponseWriter, r *http.Request) {
 	p, ok := id(r, "projectId")
 	var v struct{ Name, Slug, Description string }
-	if !ok || decode(r, &v) != nil || v.Name == "" || !valid(v.Slug) {
-		bad(w, "name and valid slug required")
+	if !ok || decode(r, &v) != nil {
+		bad(w, "invalid request or project id")
 		return
 	}
+
 	app, err := h.service.CreateApplication(r.Context(), p, v.Name, v.Slug, v.Description)
 	if err != nil {
-		if err == ErrProjectNotFound {
-			out(w, 404, map[string]string{"code": "NOT_FOUND", "message": "Project not found"})
-		} else if err == ErrResourceConflict {
-			out(w, 409, map[string]string{"code": "CONFLICT", "message": "Application conflict"})
-		} else {
-			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeValidationFailed {
+			status = 400
+		} else if httpErr.Code == CodeNotFound {
+			status = 404
+		} else if httpErr.Code == CodeConflict {
+			status = 409
 		}
+		out(w, status, httpErr)
 		return
 	}
 	out(w, 201, map[string]string{"id": app.ID.String()})
@@ -196,11 +219,12 @@ func (h *Handler) getApp(w http.ResponseWriter, r *http.Request) {
 	a, _ := id(r, "applicationId")
 	app, err := h.service.GetApplication(r.Context(), a, p)
 	if err != nil {
-		if err == ErrApplicationNotFound {
-			missing(w)
-		} else {
-			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeNotFound {
+			status = 404
 		}
+		out(w, status, httpErr)
 		return
 	}
 	out(w, 200, map[string]string{"id": app.ID.String(), "projectId": app.ProjectID.String(), "name": app.Name, "slug": app.Slug, "description": app.Description, "status": app.Status})
@@ -210,11 +234,12 @@ func (h *Handler) listDeployments(w http.ResponseWriter, r *http.Request) {
 	a, _ := id(r, "applicationId")
 	deployments, err := h.service.ListDeploymentsByApplication(r.Context(), p, a, 100, 0)
 	if err != nil {
-		if err == ErrInvalidRelationship {
-			out(w, 400, map[string]string{"code": "INVALID_RELATIONSHIP", "message": "Invalid application/project relationship"})
-		} else {
-			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeInvalidRelationship {
+			status = 400
 		}
+		out(w, status, httpErr)
 		return
 	}
 	items := []any{}
@@ -230,19 +255,25 @@ func (h *Handler) createDeployment(w http.ResponseWriter, r *http.Request) {
 		Version       string
 		Configuration json.RawMessage
 	}
-	if !po || !ao || decode(r, &v) != nil || v.Version == "" {
-		bad(w, "version required")
+	if !po || !ao || decode(r, &v) != nil {
+		bad(w, "invalid request or missing ids")
 		return
 	}
+
 	deployment, err := h.service.CreateDeployment(r.Context(), p, a, v.Version, v.Configuration)
 	if err != nil {
-		if err == ErrInvalidRelationship {
-			out(w, 400, map[string]string{"code": "INVALID_RELATIONSHIP", "message": "Invalid application/project relationship"})
-		} else if err == ErrResourceConflict {
-			out(w, 409, map[string]string{"code": "CONFLICT", "message": "Deployment conflict"})
-		} else {
-			missing(w)
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeValidationFailed {
+			status = 400
+		} else if httpErr.Code == CodeInvalidRelationship {
+			status = 400
+		} else if httpErr.Code == CodeConflict {
+			status = 409
+		} else if httpErr.Code == CodeNotFound {
+			status = 404
 		}
+		out(w, status, httpErr)
 		return
 	}
 	out(w, 201, map[string]string{"id": deployment.ID.String()})
@@ -251,11 +282,12 @@ func (h *Handler) getDeployment(w http.ResponseWriter, r *http.Request) {
 	d, _ := id(r, "id")
 	deployment, err := h.service.GetDeployment(r.Context(), d)
 	if err != nil {
-		if err == ErrDeploymentNotFound {
-			missing(w)
-		} else {
-			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeNotFound {
+			status = 404
 		}
+		out(w, status, httpErr)
 		return
 	}
 	out(w, 200, map[string]string{"id": deployment.ID.String(), "projectId": deployment.ProjectID.String(), "applicationId": deployment.ApplicationID.String(), "version": deployment.Version, "status": deployment.Status})
@@ -263,17 +295,18 @@ func (h *Handler) getDeployment(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) updateProject(w http.ResponseWriter, r *http.Request) {
 	p, ok := id(r, "id")
 	var v struct{ Name, Description, Status string }
-	if !ok || decode(r, &v) != nil || v.Name == "" {
-		bad(w, "name required")
+	if !ok || decode(r, &v) != nil {
+		bad(w, "invalid request or project id")
 		return
 	}
 	_, err := h.service.UpdateProject(r.Context(), p, v.Name, v.Description, v.Status)
 	if err != nil {
-		if err == ErrProjectNotFound {
-			missing(w)
-		} else {
-			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeNotFound {
+			status = 404
 		}
+		out(w, status, httpErr)
 		return
 	}
 	out(w, 200, map[string]string{"id": p.String()})
@@ -286,11 +319,14 @@ func (h *Handler) deleteProject(w http.ResponseWriter, r *http.Request) {
 	}
 	err := h.service.DeleteProject(r.Context(), p)
 	if err != nil {
-		if err == ErrProjectNotFound {
-			missing(w)
-		} else {
-			out(w, 409, map[string]string{"code": "CONFLICT", "message": "Project has child resources"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeNotFound {
+			status = 404
+		} else if httpErr.Code == CodeConflict {
+			status = 409
 		}
+		out(w, status, httpErr)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -299,17 +335,18 @@ func (h *Handler) updateApp(w http.ResponseWriter, r *http.Request) {
 	p, _ := id(r, "projectId")
 	a, _ := id(r, "applicationId")
 	var v struct{ Name, Description, Status string }
-	if decode(r, &v) != nil || v.Name == "" {
-		bad(w, "name required")
+	if decode(r, &v) != nil {
+		bad(w, "invalid request body")
 		return
 	}
 	_, err := h.service.UpdateApplication(r.Context(), a, p, v.Name, v.Description, v.Status)
 	if err != nil {
-		if err == ErrApplicationNotFound {
-			missing(w)
-		} else {
-			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeNotFound {
+			status = 404
 		}
+		out(w, status, httpErr)
 		return
 	}
 	out(w, 200, map[string]string{"id": a.String()})
@@ -319,11 +356,14 @@ func (h *Handler) deleteApp(w http.ResponseWriter, r *http.Request) {
 	a, _ := id(r, "applicationId")
 	err := h.service.DeleteApplication(r.Context(), a, p)
 	if err != nil {
-		if err == ErrApplicationNotFound {
-			missing(w)
-		} else {
-			out(w, 409, map[string]string{"code": "CONFLICT", "message": "Application has deployments"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeNotFound {
+			status = 404
+		} else if httpErr.Code == CodeConflict {
+			status = 409
 		}
+		out(w, status, httpErr)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -331,19 +371,20 @@ func (h *Handler) deleteApp(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) updateDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 	d, ok := id(r, "id")
 	var v struct{ Status string }
-	if !ok || decode(r, &v) != nil || !map[string]bool{"PENDING": true, "QUEUED": true, "RUNNING": true, "SUCCEEDED": true, "FAILED": true, "CANCELLED": true}[v.Status] {
-		bad(w, "invalid deployment status")
+	if !ok || decode(r, &v) != nil {
+		bad(w, "invalid request or deployment id")
 		return
 	}
 	_, err := h.service.UpdateDeploymentStatus(r.Context(), d, v.Status)
 	if err != nil {
-		if err == ErrDeploymentNotFound {
-			missing(w)
-		} else if err == ErrInvalidStatus {
-			bad(w, "invalid deployment status")
-		} else {
-			out(w, 500, map[string]string{"code": "INTERNAL", "message": "Internal server error"})
+		httpErr := ToHTTPError(err)
+		status := 500
+		if httpErr.Code == CodeValidationFailed {
+			status = 400
+		} else if httpErr.Code == CodeNotFound {
+			status = 404
 		}
+		out(w, status, httpErr)
 		return
 	}
 	out(w, 200, map[string]string{"id": d.String(), "status": v.Status})

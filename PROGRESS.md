@@ -41,8 +41,15 @@ IN PROGRESS
 - **Service Layer**: Service layer created to separate business logic from HTTP handlers and database persistence.
 - **Business Rules**: Project/application/deployment relationship validation, ownership checks, and status validation moved to service layer.
 - **Transaction Orchestration**: Audit and outbox event transaction handling moved to service layer.
-- **Service-Level Errors**: Clear service error types introduced (ErrUserNotFound, ErrProjectNotFound, ErrApplicationNotFound, ErrDeploymentNotFound, ErrInvalidRelationship, ErrInvalidStatus, ErrResourceConflict).
+- **Service-Level Errors**: Clear service error types introduced (ErrUserNotFound, ErrProjectNotFound, ErrApplicationNotFound, ErrDeploymentNotFound, ErrInvalidRelationship, ErrInvalidStatus, ErrResourceConflict, ErrValidation, ErrInternal).
 - **Handler Refactoring**: All handlers refactored to use service layer with proper error translation to HTTP responses.
+- **Validation Standardization**: Dedicated validation module created with standardized validation methods for email, display name, slug, name, description, UUID, deployment version, and deployment status.
+- **Error Handling Standardization**: Consistent HTTP error response structure (code, message) and error-to-HTTP status mapping implemented.
+- **HTTP Error Codes**: Standardized error codes (VALIDATION_FAILED, NOT_FOUND, CONFLICT, INVALID_RELATIONSHIP, INTERNAL) defined and used consistently.
+- **Error Mapping**: ToHTTPError function converts service errors to appropriate HTTP responses with correct status codes.
+- **Handler Error Translation**: All handlers updated to use consistent error translation via ToHTTPError instead of manual error checking.
+- **Validation Tests**: Comprehensive validation tests added for email, display name, slug, name, UUID, deployment version, and deployment status validation.
+- **Error Mapping Tests**: Tests added for error-to-HTTP response mapping to ensure consistent error responses.
 
 ### In Progress
 - **OpenAPI Schemas**: Endpoints defined but request/response schemas incomplete.
@@ -54,7 +61,6 @@ IN PROGRESS
 - Add integration tests with database.
 - Complete OpenAPI schemas with detailed request/response definitions.
 - Implement pagination (currently hardcoded limit 100).
-- Improve error handling consistency.
 - Complete audit logging for all operations.
 - Complete outbox events for all operations.
 - Update console UI to display Phase 1 resources.
@@ -87,7 +93,6 @@ Phase 1 implementation - completing control plane resources with contract-backed
 - OpenAPI schemas incomplete (endpoints defined but schemas minimal).
 - Console not integrated with Phase 1 resources.
 - Pagination not implemented (hardcoded limit 100).
-- Error handling inconsistent across handlers (service layer improves this but not complete).
 - Audit logging incomplete (actor_id not set, some operations missing).
 - Outbox events written but no publisher implemented.
 - Documentation outdated (PROGRESS.md, README.md, OpenAPI README).
@@ -103,4 +108,4 @@ Phase 1 implementation - completing control plane resources with contract-backed
 
 ## Last Updated
 
-2026-09-28
+2026-10-12

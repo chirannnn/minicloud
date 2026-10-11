@@ -2,38 +2,36 @@ package controlplane
 
 import (
 	"context"
-	"errors"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minicloud/minicloud/apps/api/internal/database/generated"
 )
 
-// Service layer errors
-var (
-	ErrUserNotFound        = errors.New("user not found")
-	ErrProjectNotFound     = errors.New("project not found")
-	ErrApplicationNotFound = errors.New("application not found")
-	ErrDeploymentNotFound  = errors.New("deployment not found")
-	ErrInvalidRelationship = errors.New("invalid resource relationship")
-	ErrInvalidStatus       = errors.New("invalid status transition")
-	ErrResourceConflict    = errors.New("resource already exists")
-)
-
 type Service struct {
 	db         *pgxpool.Pool
 	repository *Repository
+	validator  *Validator
 }
 
 func NewService(db *pgxpool.Pool) *Service {
 	return &Service{
 		db:         db,
 		repository: NewRepository(db),
+		validator:  NewValidator(),
 	}
 }
 
 // Users
 
 func (s *Service) CreateUser(ctx context.Context, email, displayName string) (generated.User, error) {
+	// Validate input
+	if err := s.validator.ValidateEmail(email); err != nil {
+		return generated.User{}, ErrValidation
+	}
+	if err := s.validator.ValidateDisplayName(displayName); err != nil {
+		return generated.User{}, ErrValidation
+	}
+
 	user, err := s.repository.CreateUser(ctx, email, displayName)
 	if err != nil {
 		return generated.User{}, ErrResourceConflict
@@ -56,6 +54,17 @@ func (s *Service) ListUsers(ctx context.Context, limit, offset int32) ([]generat
 // Projects
 
 func (s *Service) CreateProject(ctx context.Context, ownerID uuid.UUID, name, slug, description string) (generated.Project, error) {
+	// Validate input
+	if err := s.validator.ValidateName(name, "name"); err != nil {
+		return generated.Project{}, ErrValidation
+	}
+	if err := s.validator.ValidateSlug(slug); err != nil {
+		return generated.Project{}, ErrValidation
+	}
+	if err := s.validator.ValidateDescription(description, "description"); err != nil {
+		return generated.Project{}, ErrValidation
+	}
+
 	// Verify owner exists
 	_, err := s.repository.GetUser(ctx, ownerID)
 	if err != nil {
@@ -107,6 +116,14 @@ func (s *Service) ListProjects(ctx context.Context, limit, offset int32) ([]gene
 }
 
 func (s *Service) UpdateProject(ctx context.Context, id uuid.UUID, name, description, status string) (generated.Project, error) {
+	// Validate input
+	if err := s.validator.ValidateName(name, "name"); err != nil {
+		return generated.Project{}, ErrValidation
+	}
+	if err := s.validator.ValidateDescription(description, "description"); err != nil {
+		return generated.Project{}, ErrValidation
+	}
+
 	project, err := s.repository.UpdateProject(ctx, id, name, description, status)
 	if err != nil {
 		return generated.Project{}, ErrProjectNotFound
@@ -125,6 +142,17 @@ func (s *Service) DeleteProject(ctx context.Context, id uuid.UUID) error {
 // Applications
 
 func (s *Service) CreateApplication(ctx context.Context, projectID uuid.UUID, name, slug, description string) (generated.Application, error) {
+	// Validate input
+	if err := s.validator.ValidateName(name, "name"); err != nil {
+		return generated.Application{}, ErrValidation
+	}
+	if err := s.validator.ValidateSlug(slug); err != nil {
+		return generated.Application{}, ErrValidation
+	}
+	if err := s.validator.ValidateDescription(description, "description"); err != nil {
+		return generated.Application{}, ErrValidation
+	}
+
 	// Verify project exists
 	_, err := s.repository.GetProject(ctx, projectID)
 	if err != nil {
@@ -181,6 +209,14 @@ func (s *Service) ListApplicationsByProject(ctx context.Context, projectID uuid.
 }
 
 func (s *Service) UpdateApplication(ctx context.Context, id, projectID uuid.UUID, name, description, status string) (generated.Application, error) {
+	// Validate input
+	if err := s.validator.ValidateName(name, "name"); err != nil {
+		return generated.Application{}, ErrValidation
+	}
+	if err := s.validator.ValidateDescription(description, "description"); err != nil {
+		return generated.Application{}, ErrValidation
+	}
+
 	app, err := s.repository.UpdateApplication(ctx, id, projectID, name, description, status)
 	if err != nil {
 		return generated.Application{}, ErrApplicationNotFound
@@ -199,6 +235,11 @@ func (s *Service) DeleteApplication(ctx context.Context, id, projectID uuid.UUID
 // Deployments
 
 func (s *Service) CreateDeployment(ctx context.Context, projectID, applicationID uuid.UUID, version string, configuration []byte) (generated.Deployment, error) {
+	// Validate input
+	if err := s.validator.ValidateDeploymentVersion(version); err != nil {
+		return generated.Deployment{}, ErrValidation
+	}
+
 	// Verify application exists and belongs to the project
 	app, err := s.repository.GetApplication(ctx, applicationID, projectID)
 	if err != nil {
@@ -238,16 +279,8 @@ func (s *Service) ListDeploymentsByApplication(ctx context.Context, projectID, a
 
 func (s *Service) UpdateDeploymentStatus(ctx context.Context, id uuid.UUID, status string) (generated.Deployment, error) {
 	// Validate status
-	validStatuses := map[string]bool{
-		"PENDING":   true,
-		"QUEUED":    true,
-		"RUNNING":   true,
-		"SUCCEEDED": true,
-		"FAILED":    true,
-		"CANCELLED": true,
-	}
-	if !validStatuses[status] {
-		return generated.Deployment{}, ErrInvalidStatus
+	if err := s.validator.ValidateDeploymentStatus(status); err != nil {
+		return generated.Deployment{}, ErrValidation
 	}
 
 	deployment, err := s.repository.UpdateDeploymentStatus(ctx, id, status)
