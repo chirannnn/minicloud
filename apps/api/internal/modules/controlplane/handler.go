@@ -77,7 +77,17 @@ func (h *Handler) createUser(w http.ResponseWriter, r *http.Request) {
 	out(w, 201, map[string]string{"id": user.ID.String(), "email": user.Email, "displayName": user.DisplayName})
 }
 func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request) {
-	users, err := h.service.ListUsers(r.Context(), 100, 0)
+	// Parse and validate pagination parameters
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit, offset, validationErr := h.service.Validator.ValidatePagination(limitStr, offsetStr)
+	if validationErr != nil {
+		bad(w, validationErr.Message)
+		return
+	}
+
+	users, err := h.service.ListUsers(r.Context(), limit, offset)
 	if err != nil {
 		httpErr := ToHTTPError(err)
 		out(w, 500, httpErr)
@@ -87,7 +97,7 @@ func (h *Handler) listUsers(w http.ResponseWriter, r *http.Request) {
 	for _, user := range users {
 		items = append(items, map[string]string{"id": user.ID.String(), "email": user.Email, "displayName": user.DisplayName})
 	}
-	out(w, 200, map[string]any{"items": items, "limit": 100, "offset": 0})
+	out(w, 200, map[string]any{"items": items, "limit": limit, "offset": offset})
 }
 func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 	x, ok := id(r, "id")
@@ -138,7 +148,17 @@ func (h *Handler) createProject(w http.ResponseWriter, r *http.Request) {
 }
 func valid(s string) bool { return s != "" && len(s) < 64 && !strings.ContainsAny(s, " /\\") }
 func (h *Handler) listProjects(w http.ResponseWriter, r *http.Request) {
-	projects, err := h.service.ListProjects(r.Context(), 100, 0)
+	// Parse and validate pagination parameters
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit, offset, validationErr := h.service.Validator.ValidatePagination(limitStr, offsetStr)
+	if validationErr != nil {
+		bad(w, validationErr.Message)
+		return
+	}
+
+	projects, err := h.service.ListProjects(r.Context(), limit, offset)
 	if err != nil {
 		httpErr := ToHTTPError(err)
 		out(w, 500, httpErr)
@@ -148,7 +168,7 @@ func (h *Handler) listProjects(w http.ResponseWriter, r *http.Request) {
 	for _, project := range projects {
 		items = append(items, map[string]string{"id": project.ID.String(), "ownerId": project.OwnerID.String(), "name": project.Name, "slug": project.Slug, "description": project.Description, "status": project.Status})
 	}
-	out(w, 200, map[string]any{"items": items, "limit": 100, "offset": 0})
+	out(w, 200, map[string]any{"items": items, "limit": limit, "offset": offset})
 }
 func (h *Handler) getProject(w http.ResponseWriter, r *http.Request) {
 	x, ok := id(r, "id")
@@ -174,7 +194,18 @@ func (h *Handler) listApps(w http.ResponseWriter, r *http.Request) {
 		bad(w, "invalid project id")
 		return
 	}
-	apps, err := h.service.ListApplicationsByProject(r.Context(), p, 100, 0)
+
+	// Parse and validate pagination parameters
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit, offset, validationErr := h.service.Validator.ValidatePagination(limitStr, offsetStr)
+	if validationErr != nil {
+		bad(w, validationErr.Message)
+		return
+	}
+
+	apps, err := h.service.ListApplicationsByProject(r.Context(), p, limit, offset)
 	if err != nil {
 		httpErr := ToHTTPError(err)
 		status := 500
@@ -188,7 +219,7 @@ func (h *Handler) listApps(w http.ResponseWriter, r *http.Request) {
 	for _, app := range apps {
 		items = append(items, map[string]string{"id": app.ID.String(), "projectId": app.ProjectID.String(), "name": app.Name, "slug": app.Slug, "description": app.Description, "status": app.Status})
 	}
-	out(w, 200, map[string]any{"items": items})
+	out(w, 200, map[string]any{"items": items, "limit": limit, "offset": offset})
 }
 func (h *Handler) createApp(w http.ResponseWriter, r *http.Request) {
 	p, ok := id(r, "projectId")
@@ -232,7 +263,18 @@ func (h *Handler) getApp(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) listDeployments(w http.ResponseWriter, r *http.Request) {
 	p, _ := id(r, "projectId")
 	a, _ := id(r, "applicationId")
-	deployments, err := h.service.ListDeploymentsByApplication(r.Context(), p, a, 100, 0)
+
+	// Parse and validate pagination parameters
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit, offset, validationErr := h.service.Validator.ValidatePagination(limitStr, offsetStr)
+	if validationErr != nil {
+		bad(w, validationErr.Message)
+		return
+	}
+
+	deployments, err := h.service.ListDeploymentsByApplication(r.Context(), p, a, limit, offset)
 	if err != nil {
 		httpErr := ToHTTPError(err)
 		status := 500
@@ -246,7 +288,7 @@ func (h *Handler) listDeployments(w http.ResponseWriter, r *http.Request) {
 	for _, deployment := range deployments {
 		items = append(items, map[string]string{"id": deployment.ID.String(), "version": deployment.Version, "status": deployment.Status})
 	}
-	out(w, 200, map[string]any{"items": items})
+	out(w, 200, map[string]any{"items": items, "limit": limit, "offset": offset})
 }
 func (h *Handler) createDeployment(w http.ResponseWriter, r *http.Request) {
 	p, po := id(r, "projectId")
