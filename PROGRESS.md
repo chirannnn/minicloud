@@ -10,7 +10,7 @@ IN PROGRESS
 
 ## Current Branch
 
-`phase-1-control-plane-remaining` (3 commits ahead of main)
+`phase-1-control-plane-remaining` (4 commits ahead of main)
 
 ## Phase 0 — Foundation: COMPLETE
 
@@ -50,6 +50,12 @@ IN PROGRESS
 - **Handler Error Translation**: All handlers updated to use consistent error translation via ToHTTPError instead of manual error checking.
 - **Validation Tests**: Comprehensive validation tests added for email, display name, slug, name, UUID, deployment version, and deployment status validation.
 - **Error Mapping Tests**: Tests added for error-to-HTTP response mapping to ensure consistent error responses.
+- **Pagination Implementation**: Pagination parameters (limit, offset) added to all list endpoints (users, projects, applications, deployments).
+- **Pagination Validation**: ValidatePagination method added to validator with default limit of 20, maximum limit of 100, and validation for negative values and invalid integers.
+- **Pagination Metadata**: List responses now include limit and offset metadata for consistency.
+- **SQL-Based Pagination**: All pagination applied at SQL level using LIMIT and OFFSET clauses (not in-memory slicing).
+- **Deterministic Ordering**: All list queries ordered by created_at for consistent pagination results.
+- **Pagination Tests**: Comprehensive pagination tests added for defaults, custom limits, offsets, invalid parameters, negative values, and maximum limit enforcement.
 
 ### In Progress
 - **OpenAPI Schemas**: Endpoints defined but request/response schemas incomplete.
@@ -60,7 +66,6 @@ IN PROGRESS
 - Add comprehensive handler tests.
 - Add integration tests with database.
 - Complete OpenAPI schemas with detailed request/response definitions.
-- Implement pagination (currently hardcoded limit 100).
 - Complete audit logging for all operations.
 - Complete outbox events for all operations.
 - Update console UI to display Phase 1 resources.
@@ -92,7 +97,6 @@ Phase 1 implementation - completing control plane resources with contract-backed
 - Minimal test coverage; only basic router and service validation tests exist.
 - OpenAPI schemas incomplete (endpoints defined but schemas minimal).
 - Console not integrated with Phase 1 resources.
-- Pagination not implemented (hardcoded limit 100).
 - Audit logging incomplete (actor_id not set, some operations missing).
 - Outbox events written but no publisher implemented.
 - Documentation outdated (PROGRESS.md, README.md, OpenAPI README).

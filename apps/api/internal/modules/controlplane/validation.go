@@ -4,10 +4,17 @@ import (
 	"fmt"
 	"net/mail"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 
 	"github.com/google/uuid"
+)
+
+// Pagination constants
+const (
+	DefaultLimit = 20
+	MaxLimit     = 100
 )
 
 // Validator provides validation methods for control-plane resources
@@ -174,4 +181,38 @@ func (v *Validator) ValidateStringLength(s string, field string, min, max int) *
 	}
 
 	return nil
+}
+
+// ValidatePagination validates and returns limit and offset with defaults
+func (v *Validator) ValidatePagination(limitStr, offsetStr string) (int32, int32, *ValidationError) {
+	// Parse limit
+	limit := int32(DefaultLimit)
+	if limitStr != "" {
+		parsedLimit, err := strconv.ParseInt(limitStr, 10, 32)
+		if err != nil {
+			return 0, 0, &ValidationError{Field: "limit", Message: "limit must be a valid integer"}
+		}
+		if parsedLimit < 0 {
+			return 0, 0, &ValidationError{Field: "limit", Message: "limit must be non-negative"}
+		}
+		if parsedLimit > int64(MaxLimit) {
+			return 0, 0, &ValidationError{Field: "limit", Message: fmt.Sprintf("limit must not exceed %d", MaxLimit)}
+		}
+		limit = int32(parsedLimit)
+	}
+
+	// Parse offset
+	offset := int32(0)
+	if offsetStr != "" {
+		parsedOffset, err := strconv.ParseInt(offsetStr, 10, 32)
+		if err != nil {
+			return 0, 0, &ValidationError{Field: "offset", Message: "offset must be a valid integer"}
+		}
+		if parsedOffset < 0 {
+			return 0, 0, &ValidationError{Field: "offset", Message: "offset must be non-negative"}
+		}
+		offset = int32(parsedOffset)
+	}
+
+	return limit, offset, nil
 }

@@ -451,3 +451,156 @@ func TestHTTPError_Structure(t *testing.T) {
 		t.Errorf("HTTPError.Message = %v, want Validation failed", httpErr.Message)
 	}
 }
+
+func TestValidator_ValidatePagination(t *testing.T) {
+	validator := NewValidator()
+
+	tests := []struct {
+		name       string
+		limitStr   string
+		offsetStr  string
+		wantLimit  int32
+		wantOffset int32
+		wantErr    bool
+		errMessage string
+	}{
+		{
+			name:       "DefaultPagination",
+			limitStr:   "",
+			offsetStr:  "",
+			wantLimit:  DefaultLimit,
+			wantOffset: 0,
+			wantErr:    false,
+		},
+		{
+			name:       "CustomLimit",
+			limitStr:   "50",
+			offsetStr:  "",
+			wantLimit:  50,
+			wantOffset: 0,
+			wantErr:    false,
+		},
+		{
+			name:       "CustomOffset",
+			limitStr:   "",
+			offsetStr:  "10",
+			wantLimit:  DefaultLimit,
+			wantOffset: 10,
+			wantErr:    false,
+		},
+		{
+			name:       "CustomLimitAndOffset",
+			limitStr:   "30",
+			offsetStr:  "20",
+			wantLimit:  30,
+			wantOffset: 20,
+			wantErr:    false,
+		},
+		{
+			name:       "ZeroLimit",
+			limitStr:   "0",
+			offsetStr:  "",
+			wantLimit:  0,
+			wantOffset: 0,
+			wantErr:    false,
+		},
+		{
+			name:       "ZeroOffset",
+			limitStr:   "",
+			offsetStr:  "0",
+			wantLimit:  DefaultLimit,
+			wantOffset: 0,
+			wantErr:    false,
+		},
+		{
+			name:       "MaxLimit",
+			limitStr:   "100",
+			offsetStr:  "",
+			wantLimit:  MaxLimit,
+			wantOffset: 0,
+			wantErr:    false,
+		},
+		{
+			name:       "NegativeLimit",
+			limitStr:   "-1",
+			offsetStr:  "",
+			wantLimit:  0,
+			wantOffset: 0,
+			wantErr:    true,
+			errMessage: "limit must be non-negative",
+		},
+		{
+			name:       "NegativeOffset",
+			limitStr:   "",
+			offsetStr:  "-1",
+			wantLimit:  0,
+			wantOffset: 0,
+			wantErr:    true,
+			errMessage: "offset must be non-negative",
+		},
+		{
+			name:       "InvalidLimit",
+			limitStr:   "abc",
+			offsetStr:  "",
+			wantLimit:  0,
+			wantOffset: 0,
+			wantErr:    true,
+			errMessage: "limit must be a valid integer",
+		},
+		{
+			name:       "InvalidOffset",
+			limitStr:   "",
+			offsetStr:  "xyz",
+			wantLimit:  0,
+			wantOffset: 0,
+			wantErr:    true,
+			errMessage: "offset must be a valid integer",
+		},
+		{
+			name:       "LimitExceedsMax",
+			limitStr:   "101",
+			offsetStr:  "",
+			wantLimit:  0,
+			wantOffset: 0,
+			wantErr:    true,
+			errMessage: "limit must not exceed 100",
+		},
+		{
+			name:       "LargeOffset",
+			limitStr:   "",
+			offsetStr:  "1000",
+			wantLimit:  DefaultLimit,
+			wantOffset: 1000,
+			wantErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			limit, offset, err := validator.ValidatePagination(tt.limitStr, tt.offsetStr)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidatePagination() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				if limit != tt.wantLimit {
+					t.Errorf("ValidatePagination() limit = %v, want %v", limit, tt.wantLimit)
+				}
+				if offset != tt.wantOffset {
+					t.Errorf("ValidatePagination() offset = %v, want %v", offset, tt.wantOffset)
+				}
+			} else if err != nil && err.Message != tt.errMessage {
+				t.Errorf("ValidatePagination() error message = %v, want %v", err.Message, tt.errMessage)
+			}
+		})
+	}
+}
+
+func TestPaginationConstants(t *testing.T) {
+	if DefaultLimit != 20 {
+		t.Errorf("DefaultLimit = %v, want 20", DefaultLimit)
+	}
+	if MaxLimit != 100 {
+		t.Errorf("MaxLimit = %v, want 100", MaxLimit)
+	}
+}
