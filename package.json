@@ -9,7 +9,8 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "generate": "turbo run generate",
-    "openapi:validate": "pnpm --filter @minicloud/openapi validate"
+    "openapi:validate": "pnpm --filter @minicloud/openapi validate",
+    "openapi:generate": "pnpm --filter @minicloud/openapi generate"
   },
   "devDependencies": {
     "turbo": "^2.3.3"

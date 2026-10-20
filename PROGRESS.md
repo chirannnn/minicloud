@@ -10,7 +10,7 @@ IN PROGRESS
 
 ## Current Branch
 
-`phase-1-control-plane-remaining` (5 commits ahead of main)
+`phase-1-control-plane-remaining` (6 commits ahead of main)
 
 ## Phase 0 — Foundation: COMPLETE
 
@@ -65,16 +65,26 @@ IN PROGRESS
 - **Metadata Safety**: Sensitive data (deployment configuration) excluded from audit/outbox payloads to avoid storing secrets.
 - **Audit Coverage**: CreateUser, CreateProject, UpdateProject, DeleteProject, CreateApplication, UpdateApplication, DeleteApplication, CreateDeployment, UpdateDeploymentStatus.
 - **Outbox Coverage**: CreateUser, CreateProject, UpdateProject, DeleteProject, CreateApplication, UpdateApplication, DeleteApplication, CreateDeployment, UpdateDeploymentStatus.
+- **OpenAPI Completion**: Complete OpenAPI 3.1 specification for all Phase 1 endpoints with accurate request/response schemas.
+- **OpenAPI Endpoints**: All 17 Phase 1 endpoints documented with operation IDs, parameters, request bodies, and responses.
+- **OpenAPI Schemas**: Complete schemas for User, Project, Application, Deployment resources with validation constraints.
+- **Pagination Documentation**: Pagination parameters (limit, offset) documented with default 20 and max 100 values.
+- **Error Response Schemas**: Standardized error schema with code (VALIDATION_FAILED, NOT_FOUND, CONFLICT, INVALID_RELATIONSHIP, INTERNAL) and message.
+- **HTTP Status Mapping**: Accurate HTTP status codes documented for all success and error responses.
+- **TypeScript Generation**: openapi-typescript configured to generate TypeScript types from OpenAPI specification.
+- **Generated Types**: types.ts file generated with complete TypeScript interfaces for all API endpoints and schemas.
+- **Type Generation Script**: Added generate script to openapi package that validates, generates, and formats types.
+- **CI Integration**: Added type generation and freshness check to CI workflow to ensure types stay up to date.
+- **OpenAPI Validation**: OpenAPI specification validated with swagger-cli.
+- **Git Ignore**: Generated types.ts added to .gitignore to avoid committing generated files.
 
 ### In Progress
-- **OpenAPI Schemas**: Endpoints defined but request/response schemas incomplete.
 - **Testing**: Only basic router tests exist; no handler or integration tests.
 - **Console Integration**: Console still shows Phase 0 messaging; no Phase 1 resource UI.
 
 ### Remaining Work
 - Add comprehensive handler tests.
 - Add integration tests with database.
-- Complete OpenAPI schemas with detailed request/response definitions.
 - Update console UI to display Phase 1 resources.
 - Update documentation to reflect Phase 1 progress.
 
@@ -85,9 +95,8 @@ Phase 1 implementation - completing control plane resources with contract-backed
 ## Next Steps
 
 1. Add comprehensive test coverage (handler tests, integration tests).
-2. Complete OpenAPI schemas and generate type clients.
-3. Update console UI for Phase 1 resources.
-4. Update documentation to reflect Phase 1 progress.
+2. Update console UI for Phase 1 resources.
+3. Update documentation to reflect Phase 1 progress.
 
 ## Decisions Made
 
@@ -102,7 +111,6 @@ Phase 1 implementation - completing control plane resources with contract-backed
 ## Problems / Technical Debt
 
 - Minimal test coverage; only basic router and service validation tests exist.
-- OpenAPI schemas incomplete (endpoints defined but schemas minimal).
 - Console not integrated with Phase 1 resources.
 - Outbox events written but no publisher implemented (deferred to Phase 4 MiniEvents).
 - Documentation outdated (PROGRESS.md, README.md, OpenAPI README).

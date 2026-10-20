@@ -3,9 +3,12 @@
   "private": true,
   "scripts": {
     "validate": "swagger-cli validate openapi.yaml",
-    "generate": "pnpm validate"
+    "generate": "pnpm validate && openapi-typescript openapi.yaml -o types.ts && pnpm format",
+    "format": "prettier --write types.ts"
   },
   "devDependencies": {
+    "openapi-typescript": "^7.4.2",
+    "prettier": "^3.4.2",
     "swagger-cli": "^4.0.4"
   }
 }
