@@ -25,6 +25,8 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile=false
       - run: pnpm openapi:validate
+      - run: pnpm --filter @minicloud/openapi generate
+      - run: git diff --exit-code packages/openapi/types.ts
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm build

@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: MiniCloud API
   version: 0.1.0
-  description: Phase 1 control-plane contract. Lists use limit/offset pagination.
+  description: Phase 1 control-plane contract. Lists use limit/offset pagination with default limit 20 and max 100.
 servers:
   - url: http://localhost:8080
     description: Local development API
@@ -52,36 +52,405 @@ paths:
               schema:
                 $ref: '#/components/schemas/HealthResponse'
   /api/v1/users:
-    get: { operationId: listUsers, responses: {'200': {description: Users}} }
-    post: { operationId: createUser, responses: {'201': {description: User created}, '400': {$ref: '#/components/responses/BadRequest'}} }
+    get:
+      operationId: listUsers
+      summary: List users with pagination.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createUser
+      summary: Create a new user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/users/{id}:
-    get: { operationId: getUser, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: User}, '404': {$ref: '#/components/responses/NotFound'}} }
+    get:
+      operationId: getUser
+      summary: Get a user by ID.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/projects:
-    get: { operationId: listProjects, responses: {'200': {description: Projects}} }
-    post: { operationId: createProject, responses: {'201': {description: Project created}} }
+    get:
+      operationId: listProjects
+      summary: List projects with pagination.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createProject
+      summary: Create a new project.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/projects/{id}:
-    get: { operationId: getProject, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Project}} }
-    patch: { operationId: updateProject, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Project updated}} }
-    delete: { operationId: deleteProject, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'204': {description: Deleted}} }
+    get:
+      operationId: getProject
+      summary: Get a project by ID.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Project found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateProject
+      summary: Update a project.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+      responses:
+        '200':
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteProject
+      summary: Delete a project.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '204':
+          description: Project deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/projects/{projectId}/applications:
-    get: { operationId: listApplications, parameters: [{$ref: '#/components/parameters/ProjectId'}], responses: {'200': {description: Applications}} }
-    post: { operationId: createApplication, parameters: [{$ref: '#/components/parameters/ProjectId'}], responses: {'201': {description: Application created}} }
+    get:
+      operationId: listApplications
+      summary: List applications for a project with pagination.
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: List of applications
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createApplication
+      summary: Create a new application.
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateApplicationRequest'
+      responses:
+        '201':
+          description: Application created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/projects/{projectId}/applications/{applicationId}:
-    get: { operationId: getApplication, parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/ApplicationId'}], responses: {'200': {description: Application}} }
-    patch: { operationId: updateApplication, parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/ApplicationId'}], responses: {'200': {description: Application updated}} }
-    delete: { operationId: deleteApplication, parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/ApplicationId'}], responses: {'204': {description: Deleted}} }
+    get:
+      operationId: getApplication
+      summary: Get an application by ID.
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ApplicationId'
+      responses:
+        '200':
+          description: Application found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateApplication
+      summary: Update an application.
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ApplicationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateApplicationRequest'
+      responses:
+        '200':
+          description: Application updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApplicationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteApplication
+      summary: Delete an application.
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ApplicationId'
+      responses:
+        '204':
+          description: Application deleted
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/projects/{projectId}/applications/{applicationId}/deployments:
-    get: { operationId: listDeployments, parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/ApplicationId'}], responses: {'200': {description: Deployments}} }
-    post: { operationId: createDeployment, parameters: [{$ref: '#/components/parameters/ProjectId'}, {$ref: '#/components/parameters/ApplicationId'}], responses: {'201': {description: Deployment created}} }
+    get:
+      operationId: listDeployments
+      summary: List deployments for an application with pagination.
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ApplicationId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: List of deployments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createDeployment
+      summary: Create a new deployment.
+      parameters:
+        - $ref: '#/components/parameters/ProjectId'
+        - $ref: '#/components/parameters/ApplicationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDeploymentRequest'
+      responses:
+        '201':
+          description: Deployment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/deployments/{id}:
-    get: { operationId: getDeployment, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Deployment}} }
+    get:
+      operationId: getDeployment
+      summary: Get a deployment by ID.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Deployment found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/deployments/{id}/status:
-    patch: { operationId: updateDeploymentStatus, parameters: [{$ref: '#/components/parameters/Id'}], responses: {'200': {description: Deployment updated}} }
+    patch:
+      operationId: updateDeploymentStatus
+      summary: Update deployment status.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDeploymentStatusRequest'
+      responses:
+        '200':
+          description: Deployment status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeploymentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
 components:
   parameters:
-    Id: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
-    ProjectId: {name: projectId, in: path, required: true, schema: {type: string, format: uuid}}
-    ApplicationId: {name: applicationId, in: path, required: true, schema: {type: string, format: uuid}}
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ApplicationId:
+      name: applicationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Limit:
+      name: limit
+      in: query
+      description: Maximum number of items to return, default 20, max 100
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 100
+        default: 20
+    Offset:
+      name: offset
+      in: query
+      description: Number of items to skip, default 0
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
   headers:
     RequestId:
       description: Correlation identifier assigned to this HTTP request.
@@ -111,17 +480,242 @@ components:
             enum: [ok, unavailable]
     Error:
       type: object
-      required: [code, message, requestId]
+      required: [code, message]
       properties:
         code:
           type: string
+          enum: [VALIDATION_FAILED, NOT_FOUND, CONFLICT, INVALID_RELATIONSHIP, INTERNAL]
         message:
           type: string
-        requestId:
+    UserResponse:
+      type: object
+      required: [id, email, displayName]
+      properties:
+        id:
           type: string
+          format: uuid
+        email:
+          type: string
+        displayName:
+          type: string
+    CreateUserRequest:
+      type: object
+      required: [email, displayName]
+      properties:
+        email:
+          type: string
+          format: email
+        displayName:
+          type: string
+          maxLength: 100
+    UserListResponse:
+      type: object
+      required: [items, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        limit:
+          type: integer
+        offset:
+          type: integer
+    ProjectResponse:
+      type: object
+      required: [id, ownerId, name, slug, description, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        ownerId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+        slug:
+          type: string
+          maxLength: 64
+          pattern: '^[a-zA-Z0-9_-]+$'
+        description:
+          type: string
+          maxLength: 500
+        status:
+          type: string
+    CreateProjectRequest:
+      type: object
+      required: [ownerId, name, slug]
+      properties:
+        ownerId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+        slug:
+          type: string
+          maxLength: 64
+          pattern: '^[a-zA-Z0-9_-]+$'
+        description:
+          type: string
+          maxLength: 500
+    UpdateProjectRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        status:
+          type: string
+    ProjectListResponse:
+      type: object
+      required: [items, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectResponse'
+        limit:
+          type: integer
+        offset:
+          type: integer
+    ApplicationResponse:
+      type: object
+      required: [id, projectId, name, slug, description, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+        slug:
+          type: string
+          maxLength: 64
+          pattern: '^[a-zA-Z0-9_-]+$'
+        description:
+          type: string
+          maxLength: 500
+        status:
+          type: string
+    CreateApplicationRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        slug:
+          type: string
+          maxLength: 64
+          pattern: '^[a-zA-Z0-9_-]+$'
+        description:
+          type: string
+          maxLength: 500
+    UpdateApplicationRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+        status:
+          type: string
+    ApplicationListResponse:
+      type: object
+      required: [items, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationResponse'
+        limit:
+          type: integer
+        offset:
+          type: integer
+    DeploymentResponse:
+      type: object
+      required: [id, projectId, applicationId, version, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        applicationId:
+          type: string
+          format: uuid
+        version:
+          type: string
+          maxLength: 50
+        status:
+          type: string
+          enum: [PENDING, QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED]
+    CreateDeploymentRequest:
+      type: object
+      required: [version, configuration]
+      properties:
+        version:
+          type: string
+          maxLength: 50
+        configuration:
+          type: object
+          additionalProperties: true
+    UpdateDeploymentStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [PENDING, QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED]
+    DeploymentListResponse:
+      type: object
+      required: [items, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DeploymentResponse'
+        limit:
+          type: integer
+        offset:
+          type: integer
   responses:
-    BadRequest: {description: Invalid request}
-    NotFound: {description: Resource not found}
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Resource already exists or conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
     ServiceUnavailable:
       description: One or more required dependencies are unavailable.
       headers:
