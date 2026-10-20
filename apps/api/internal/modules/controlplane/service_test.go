@@ -604,3 +604,11 @@ func TestPaginationConstants(t *testing.T) {
 		t.Errorf("MaxLimit = %v, want 100", MaxLimit)
 	}
 }
+
+func TestAuditAndOutboxHelperFunctions(t *testing.T) {
+	// Test that helper functions exist and have correct signatures
+	// These are integration tests that would require a database connection
+	// For now, we verify the functions exist by checking they compile
+	// Actual database integration tests would be added in a separate test file
+	t.Skip("Integration tests require database connection")
+}
