@@ -10,7 +10,7 @@ IN PROGRESS
 
 ## Current Branch
 
-`phase-1-control-plane-remaining` (4 commits ahead of main)
+`phase-1-control-plane-remaining` (5 commits ahead of main)
 
 ## Phase 0 — Foundation: COMPLETE
 
@@ -56,6 +56,15 @@ IN PROGRESS
 - **SQL-Based Pagination**: All pagination applied at SQL level using LIMIT and OFFSET clauses (not in-memory slicing).
 - **Deterministic Ordering**: All list queries ordered by created_at for consistent pagination results.
 - **Pagination Tests**: Comprehensive pagination tests added for defaults, custom limits, offsets, invalid parameters, negative values, and maximum limit enforcement.
+- **Audit Logging Coverage**: All mutation operations now create audit records with appropriate action, resource type, resource ID, and metadata.
+- **Outbox Event Coverage**: All mutation operations now create outbox events with event type, aggregate type, aggregate ID, and payload.
+- **Transaction Safety**: Audit and outbox inserts are wrapped in the same transaction as the resource mutation, ensuring atomicity.
+- **Audit Helper Functions**: insertAuditLog helper function created to standardize audit log insertion with JSONB metadata.
+- **Outbox Helper Functions**: insertOutboxEvent helper function created to standardize outbox event insertion with JSONB payload.
+- **Actor ID Handling**: Actor ID set to uuid.Nil for operations where authentication is not yet implemented (Phase 11).
+- **Metadata Safety**: Sensitive data (deployment configuration) excluded from audit/outbox payloads to avoid storing secrets.
+- **Audit Coverage**: CreateUser, CreateProject, UpdateProject, DeleteProject, CreateApplication, UpdateApplication, DeleteApplication, CreateDeployment, UpdateDeploymentStatus.
+- **Outbox Coverage**: CreateUser, CreateProject, UpdateProject, DeleteProject, CreateApplication, UpdateApplication, DeleteApplication, CreateDeployment, UpdateDeploymentStatus.
 
 ### In Progress
 - **OpenAPI Schemas**: Endpoints defined but request/response schemas incomplete.
@@ -66,8 +75,6 @@ IN PROGRESS
 - Add comprehensive handler tests.
 - Add integration tests with database.
 - Complete OpenAPI schemas with detailed request/response definitions.
-- Complete audit logging for all operations.
-- Complete outbox events for all operations.
 - Update console UI to display Phase 1 resources.
 - Update documentation to reflect Phase 1 progress.
 
@@ -97,8 +104,7 @@ Phase 1 implementation - completing control plane resources with contract-backed
 - Minimal test coverage; only basic router and service validation tests exist.
 - OpenAPI schemas incomplete (endpoints defined but schemas minimal).
 - Console not integrated with Phase 1 resources.
-- Audit logging incomplete (actor_id not set, some operations missing).
-- Outbox events written but no publisher implemented.
+- Outbox events written but no publisher implemented (deferred to Phase 4 MiniEvents).
 - Documentation outdated (PROGRESS.md, README.md, OpenAPI README).
 
 ## Important Notes For Next Agent
