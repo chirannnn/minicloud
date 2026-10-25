@@ -10,7 +10,7 @@ IN PROGRESS
 
 ## Current Branch
 
-`phase-1-control-plane-remaining` (6 commits ahead of main)
+`phase-1-control-plane-remaining` (7 commits ahead of main)
 
 ## Phase 0 — Foundation: COMPLETE
 
@@ -77,15 +77,23 @@ IN PROGRESS
 - **CI Integration**: Added type generation and freshness check to CI workflow to ensure types stay up to date.
 - **OpenAPI Validation**: OpenAPI specification validated with swagger-cli.
 - **Git Ignore**: Generated types.ts added to .gitignore to avoid committing generated files.
+- **Console UI**: Full Phase 1 control plane console UI built with real API integration.
+- **Console Pages**: Dashboard, Projects list/detail, Applications list/detail, Deployments list/detail pages implemented.
+- **Console API Integration**: Shared API helper created for all API requests with proper error handling.
+- **Console Workflows**: Create/read/delete for projects, applications, and deployments with real API calls.
+- **Console Forms**: Create forms for projects, applications, and deployments with validation.
+- **Console Navigation**: Navigation between dashboard, projects, applications, and deployments.
+- **Console States**: Loading, empty, and error states handled across all pages.
+- **Console Styling**: Enhanced CSS with form controls, buttons, and improved UI elements.
+- **TypeScript Path Aliases**: Configured @/* path alias for cleaner imports.
+- **Next.js Params**: Updated to use Promise-based params for Next.js 15 compatibility.
 
 ### In Progress
 - **Testing**: Only basic router tests exist; no handler or integration tests.
-- **Console Integration**: Console still shows Phase 0 messaging; no Phase 1 resource UI.
 
 ### Remaining Work
 - Add comprehensive handler tests.
 - Add integration tests with database.
-- Update console UI to display Phase 1 resources.
 - Update documentation to reflect Phase 1 progress.
 
 ## Currently Working On
