@@ -19,9 +19,14 @@ func TestMain(m *testing.M) {
 	// Check if test database is available
 	testDBURL := os.Getenv("TEST_DATABASE_URL")
 	if testDBURL == "" {
-		// Default to main database for testing if test database not available
-		// This is not ideal but allows running tests without separate test infrastructure
-		testDBURL = "postgres://minicloud:minicloud_dev_password@localhost:5432/minicloud?sslmode=disable"
+		// Do NOT fall back to main database - require explicit test database
+		// This prevents accidental test execution against development data
+		fmt.Printf("Integration tests skipped: TEST_DATABASE_URL not set\n")
+		fmt.Println("To run integration tests:")
+		fmt.Println("1. Set TEST_DATABASE_URL environment variable")
+		fmt.Println("2. Example: TEST_DATABASE_URL=\"postgres://minicloud:minicloud_dev_password@localhost:5433/minicloud_test?sslmode=disable\"")
+		fmt.Println("3. Start test database: docker compose --profile test up -d postgres-test")
+		os.Exit(0)
 	}
 
 	ctx := context.Background()

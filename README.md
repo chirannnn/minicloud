@@ -4,9 +4,9 @@ MiniCloud is a small, educational cloud engineering platform. It uses real infra
 
 ## Current status
 
-Phase 1 — Core Control Plane (in progress)
+Phase 1 — Core Control Plane (complete)
 
-Phase 0 (Foundation) is complete. Phase 1 adds users, projects, applications, and deployments with database migrations, API endpoints, and validation.
+Phase 0 (Foundation) is complete. Phase 1 adds users, projects, applications, and deployments with database migrations, API endpoints, validation, audit logging, outbox events, OpenAPI contracts, and console UI.
 
 ## Requirements
 
