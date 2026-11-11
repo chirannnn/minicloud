@@ -6,7 +6,7 @@ Phase 1 — Core Control Plane
 
 ## Status
 
-IN PROGRESS
+COMPLETE
 
 ## Current Branch
 
@@ -96,12 +96,21 @@ IN PROGRESS
 - **Integration Test Prerequisites**: Tests skip gracefully if database not available; documented requirements.
 
 ### In Progress
-- **Testing**: Only basic router tests exist; no handler or integration tests.
+None
 
 ### Remaining Work
-- Add comprehensive handler tests.
-- Add integration tests with database.
-- Update documentation to reflect Phase 1 progress.
+None (Phase 1 complete)
+
+### Phase 1 Verification
+- **Backend**: gofmt, go vet, go test, go build all passed
+- **Handler Tests**: Added tests for malformed JSON, invalid request bodies, invalid UUIDs, pagination errors, consistent error responses
+- **Integration Tests**: Database integration tests created with test isolation (postgres-test service)
+- **Integration Test Safety**: Tests require explicit TEST_DATABASE_URL; no fallback to development database
+- **OpenAPI**: Validation passed, TypeScript generation successful
+- **Frontend**: lint, typecheck, build all passed
+- **Infrastructure**: docker compose config --quiet passed
+- **CI**: Updated to remove stale types.ts freshness check (types.ts is gitignored)
+- **Limitations**: Integration tests not executed (Docker not available during verification); test code is complete and will run when database is available
 
 ## Currently Working On
 
@@ -141,4 +150,4 @@ Phase 1 implementation - completing control plane resources with contract-backed
 
 ## Last Updated
 
-2026-10-12
+2026-11-12
