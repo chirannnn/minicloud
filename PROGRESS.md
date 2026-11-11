@@ -10,7 +10,7 @@ IN PROGRESS
 
 ## Current Branch
 
-`phase-1-control-plane-remaining` (7 commits ahead of main)
+`phase-1-control-plane-remaining` (8 commits ahead of main)
 
 ## Phase 0 — Foundation: COMPLETE
 
@@ -87,6 +87,13 @@ IN PROGRESS
 - **Console Styling**: Enhanced CSS with form controls, buttons, and improved UI elements.
 - **TypeScript Path Aliases**: Configured @/* path alias for cleaner imports.
 - **Next.js Params**: Updated to use Promise-based params for Next.js 15 compatibility.
+- **Integration Tests**: Database integration tests created for Phase 1 control plane resources.
+- **Integration Test Coverage**: CRUD operations for users, projects, applications, and deployments tested against real PostgreSQL.
+- **Integration Test Atomicity**: Audit and outbox transaction atomicity verified with rollback tests.
+- **Integration Test Scenarios**: Pagination, constraint violations, not-found behavior, metadata/payload handling tested.
+- **Integration Test Setup**: Docker Compose postgres-test service added for isolated test database.
+- **Integration Test Script**: test-integration.sh script created for running integration tests with test database.
+- **Integration Test Prerequisites**: Tests skip gracefully if database not available; documented requirements.
 
 ### In Progress
 - **Testing**: Only basic router tests exist; no handler or integration tests.
